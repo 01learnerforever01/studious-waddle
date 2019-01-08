@@ -1,0 +1,428 @@
+# coding: utf-8
+
+# In[1]:
+
+
+import pandas as pd
+import numpy as np
+import statsmodels.api as sm
+import matplotlib.pyplot as plt
+import statsmodels
+import math
+from pylab import *
+mpl.rcParams['font.sans-serif'] = ['SimHei']
+
+
+# In[2]:
+
+
+asset = pd.read_excel('C:/Users/1/Desktop/期末论文/python/assetanddebt.xlsx',names=['ID','time','asset','debt','equities','debt and equities'])
+asset.drop(columns='debt and equities',inplace=True)
+cash= pd.read_excel('C:/Users/1/Desktop/期末论文/python/cashflow.xlsx',names=['ID','time','payment'])
+wage= pd.read_excel('C:/Users/1/Desktop/期末论文/python/wage.xlsx',names=['ID','time','employee','employer','manager','wage','wage3th'])
+profit= pd.read_excel('C:/Users/1/Desktop/期末论文/python/profit.xlsx',names=['ID','time','profit'])
+
+
+# In[3]:
+
+
+def collate(a):
+    def filtrate_year(m):
+        if int(m[0]) >= 2010:
+            pool = 1
+        else:
+            pool = 0
+        return pool
+    def filtrate_month(m):
+        if int(m[1]) == 12:
+            pool = 1
+        else:
+            pool = 0
+        return pool
+    def filtrate(a,b):
+        if a+b == 2:
+            pool = 1
+        else:
+            pool = 0
+        return pool 
+    dataa=[]        
+    for i in range(len(a)):
+        m=a.iloc[i,1].split('-')
+        if filtrate(filtrate_year(m),filtrate_month(m)) == 1:
+            dataa.append(a.iloc[i,1])
+        else:
+            dataa.append(0)
+    a.time=dataa
+    a01=a.drop(index=a.loc[a['time']==0].index).reset_index(drop=True)
+    even=[]
+    for i in range(len(a01)):
+        if (i%2 ==1):
+            even.append(i)
+    a02=a01.drop(index=even).reset_index(drop=True) 
+    return a02
+def collate1(a):
+    def filtrate_year(m):
+        if int(m[0]) >= 2010:
+            pool = 1
+        else:
+            pool = 0
+        return pool
+    def filtrate_month(m):
+        if int(m[1]) == 12:
+            pool = 1
+        else:
+            pool = 0
+        return pool
+    def filtrate(a,b):
+        if a+b == 2:
+            pool = 1
+        else:
+            pool = 0
+        return pool 
+    dataa=[]        
+    for i in range(len(a)):
+        m=a.iloc[i,1].split('-')
+        if filtrate(filtrate_year(m),filtrate_month(m)) == 1:
+            dataa.append(a.iloc[i,1])
+        else:
+            dataa.append(0)
+    a.time=dataa
+    a01=a.drop(index=a.loc[a['time']==0].index).reset_index(drop=True)
+    return a01
+def collateprofit(a):
+    def filtrate_year(m):
+        if int(m[0]) >= 2010:
+            pool = 1
+        else:
+            pool = 0
+        return pool
+    def filtrate_month(m):
+        if int(m[1]) == 1:
+            pool = 0
+        else:
+            pool = 1
+        return pool
+    def filtrate(a,b):
+        if a+b == 2:
+            pool = 1
+        else:
+            pool = 0
+        return pool 
+    data=[]        
+    for i in range(len(a)):
+        m=a.iloc[i,1].split('-')
+        if filtrate(filtrate_year(m),filtrate_month(m)) == 1:
+            data.append(a.iloc[i,1])
+        else:
+            data.append(0)
+    a.time=data
+    a01=a.drop(index=a.loc[a['time']==0].index).reset_index(drop=True)
+    even=[]
+    for i in range(len(a01)):
+        if (i%2 ==1):
+            even.append(i)
+    a02=a01.drop(index=even).reset_index(drop=True)
+    sumprofit=[]
+    for i in range(0,len(a02),4):
+        m=a02.profit.iloc[i]+a02.profit.iloc[i+1]+a02.profit.iloc[i+2]+a02.profit.iloc[i+3]
+        sumprofit.append(m)
+    def filtrate_month1(m):
+        if int(m[1]) == 12:
+            pool = 1
+        else:
+            pool = 0
+        return pool
+    data1=[]
+    for i in range(len(a02)):
+        m=a02.iloc[i,1].split('-')
+        if filtrate_month1(m) == 1:
+            data1.append(a02.iloc[i,1])
+        else:
+            data1.append(0)
+    a02.time=data1
+    a03=a02.drop(index=a02.loc[a02['time']==0].index).reset_index(drop=True)
+    a03.profit=sumprofit
+    return a03   
+
+
+# In[4]:
+
+
+Asset=collate(asset)
+Cash=collate(cash)
+Profit=collateprofit(profit)
+Wage=collate1(wage)
+
+
+# In[5]:
+
+
+table1 = Asset.merge(Profit,how='left',left_on=Asset.index,right_on=Profit.index)
+table1.drop('key_0',axis=1,inplace=True)
+table2 = table1.merge(Cash,how='left',left_on=table1.index,right_on=Cash.index)
+table2.drop('key_0',axis=1,inplace=True)
+Table=table2.merge(Wage,how='left',left_on=table2.index,right_on=Wage.index)
+Table.drop(['key_0','ID_y','time_y'],axis=1,inplace=True)
+Table=table2.merge(Wage,how='left',left_on=table2.index,right_on=Wage.index)
+Table.drop(['key_0','ID_y','time_y','ID_x'],axis=1,inplace=True)
+
+
+# In[6]:
+
+
+roe=[]
+for i in range(len(Table)):
+    roe.append(Table.profit.iloc[i]/Table.equities.iloc[i]/3)
+roa=[]
+for i in range(len(Table)):
+    roa.append(Table.profit.iloc[i]/Table.asset.iloc[i])
+ni=[]
+for i in range(len(Table)):
+    ni.append(math.log(Table.profit.iloc[i]))
+erp=[]
+for i in range(len(Table)):
+    erp.append(Table.wage.iloc[i]/(Table.employer.iloc[i]+Table.manager.iloc[i]))
+eep=[]
+for i in range(len(Table)):
+    eep.append((Table.payment.iloc[i]-Table.wage.iloc[i])/(Table.employee.iloc[i]-Table.employer.iloc[i]-Table.manager.iloc[i]))
+agap=[]
+for i in range(len(erp)):
+    agap.append((erp[i]/eep[i]))
+agap2=[]
+for i in range(len(agap)):
+    agap2.append(agap[i]**2)
+lnagap=[] 
+for i in range(len(agap)):
+    lnagap.append(math.log(agap[i]))
+lnagap2=[]
+for i in range(len(agap2)):
+    lnagap2.append(math.log(agap2[i]))
+tp=[]
+for i in range(len(Table)):
+    tp.append((Table.wage3th.iloc[i]/3))
+ap=[]
+for i in range(len(Table)):
+    ap.append((Table.wage.iloc[i]-Table.wage3th.iloc[i])/(Table.employer.iloc[i]+Table.manager.iloc[i]-3))
+bgap=[]
+for i in range(len(tp)):
+    bgap.append(tp[i]/ap[i])
+bgap2=[]
+for i in range(len(bgap)):
+    bgap2.append(bgap[i]**2)
+lnbgap=[]
+for i in range(len(bgap)):
+    lnbgap.append(math.log(bgap[i]))
+lnbgap2=[]
+for i in range(len(bgap2)):
+    lnbgap2.append(math.log(bgap2[i]))
+na=[]
+for i in range(len(Table)):
+    na.append(Table.debt.iloc[i]/Table.asset.iloc[i])
+size=[]
+for i in range(len(Table)):
+    size.append(math.log(Table.asset.iloc[i]))
+
+
+# In[7]:
+
+
+para_dict = {'Roe':roe,'Roa':roa,'Ni':ni,'Agap':agap,'Agap2':agap2,'Lnagap':lnagap,'Lnagap2':lnagap2,'Bgap':bgap,
+            'Bgap2':bgap2,'Lnbgap':lnbgap,'Lnbgap2':lnbgap2,'Size':size,'Na':na}
+para = pd.DataFrame(para_dict)
+
+
+# In[8]:
+
+
+para.insert(0,column='date',value=(Table.iloc[:,0]))
+w=[]
+for i in range(len(para)):
+    m=str(para.iloc[i,0]).split('-')
+    w.append(m[0])
+para.insert(0,column='year',value=w)
+
+
+# In[9]:
+
+
+para.describe()
+
+
+# In[10]:
+
+
+parayear=para.groupby('year')
+parayear.mean()
+
+
+# In[11]:
+
+
+parayear.mean().plot(y=['Agap','Bgap'])
+plt.title('Trend of Years',fontsize=16,fontweight='bold')
+plt.yticks(range(1,7),fontsize=8)
+
+
+# In[13]:
+
+
+para.plot.scatter(x='Agap',y='Ni')
+para.plot.scatter(x='Lnagap',y='Ni')
+para.plot.scatter(x='Bgap',y='Ni')
+para.plot.scatter(x='Lnbgap',y='Ni')
+para.plot.scatter(x='Agap',y='Roe')
+para.plot.scatter(x='Lnagap',y='Roe')
+para.plot.scatter(x='Bgap',y='Roe')
+para.plot.scatter(x='Lnbgap',y='Roe')
+para.plot.scatter(x='Agap',y='Roa')
+para.plot.scatter(x='Lnagap',y='Roe')
+para.plot.scatter(x='Bgap',y='Roe')
+para.plot.scatter(x='Lnbgap',y='Roe')
+
+
+# In[12]:
+
+
+def ols(dat,x,y):
+    X = dat[x]
+    X=sm.add_constant(X)
+    Y = dat[y]
+    modle=sm.OLS(Y,X)
+    result= modle.fit()
+    print(result.conf_int())
+    print(result.summary())
+def olsp(dat,x,y):
+    X = dat[x]
+    X=sm.add_constant(X)
+    Y = dat[y]
+    modle=sm.OLS(Y,X)
+    result= modle.fit()
+    print(result.pvalues)    
+
+
+# In[17]:
+
+
+olsp(para,['Agap','Size','Na'],['Ni'])
+ols(para,['Agap','Size','Na'],['Ni'])
+olsp(para,['Agap','Agap2','Size','Na'],['Ni'])
+ols(para,['Agap','Agap2','Size','Na'],['Ni'])
+
+
+# In[18]:
+
+
+olsp(para,['Lnagap','Size','Na'],['Ni'])
+ols(para,['Lnagap','Size','Na'],['Ni'])
+olsp(para,['Lnagap','Lnagap2','Size','Na'],['Ni'])
+ols(para,['Lnagap','Lnagap2','Size','Na'],['Ni'])
+
+
+# In[19]:
+
+
+olsp(para,['Bgap','Size','Na'],['Ni'])
+ols(para,['Bgap','Size','Na'],['Ni'])
+olsp(para,['Bgap','Bgap2','Size','Na'],['Ni'])
+ols(para,['Bgap','Bgap2','Size','Na'],['Ni'])
+
+
+# In[20]:
+
+
+olsp(para,['Lnbgap','Size','Na'],['Ni'])
+ols(para,['Lnbgap','Size','Na'],['Ni'])
+olsp(para,['Lnbgap','Lnbgap2','Size','Na'],['Ni'])
+ols(para,['Lnbgap','Lnbgap2','Size','Na'],['Ni'])
+
+
+# In[21]:
+
+
+olsp(para,['Agap','Size','Na'],['Roe'])
+ols(para,['Agap','Size','Na'],['Roe'])
+olsp(para,['Agap','Agap2','Size','Na'],['Roe'])
+ols(para,['Agap','Agap2','Size','Na'],['Roe'])
+
+
+# In[22]:
+
+
+olsp(para,['Lnagap','Size','Na'],['Roe'])
+ols(para,['Lnagap','Size','Na'],['Roe'])
+olsp(para,['Lnagap','Lnagap2','Size','Na'],['Roe'])
+ols(para,['Lnagap','Lnagap2','Size','Na'],['Roe'])
+
+
+# In[23]:
+
+
+olsp(para,['Bgap','Size','Na'],['Roe'])
+ols(para,['Bgap','Size','Na'],['Roe'])
+olsp(para,['Bgap','Bgap2','Size','Na'],['Roe'])
+ols(para,['Bgap','Bgap2','Size','Na'],['Roe'])
+
+
+# In[24]:
+
+
+olsp(para,['Lnbgap','Size','Na'],['Roe'])
+ols(para,['Lnbgap','Size','Na'],['Roe'])
+olsp(para,['Lnbgap','Lnbgap2','Size','Na'],['Roe'])
+ols(para,['Lnbgap','Lnbgap2','Size','Na'],['Roe'])
+
+
+# In[25]:
+
+
+olsp(para,['Agap','Size','Na'],['Roa'])
+ols(para,['Agap','Size','Na'],['Roa'])
+olsp(para,['Agap','Agap2','Size','Na'],['Roa'])
+ols(para,['Agap','Agap2','Size','Na'],['Roa'])
+
+
+# In[26]:
+
+
+olsp(para,['Lnagap','Size','Na'],['Roa'])
+ols(para,['Lnagap','Size','Na'],['Roa'])
+olsp(para,['Lnagap','Lnagap2','Size','Na'],['Roa'])
+ols(para,['Lnagap','Lnagap2','Size','Na'],['Roa'])
+
+
+# In[27]:
+
+
+olsp(para,['Bgap','Size','Na'],['Roa'])
+ols(para,['Bgap','Size','Na'],['Roa'])
+olsp(para,['Bgap','Bgap2','Size','Na'],['Roa'])
+ols(para,['Bgap','Bgap2','Size','Na'],['Roa'])
+
+
+# In[28]:
+
+
+olsp(para,['Lnbgap','Size','Na'],['Roa'])
+ols(para,['Lnbgap','Size','Na'],['Roa'])
+olsp(para,['Lnbgap','Lnbgap2','Size','Na'],['Roa'])
+ols(para,['Lnbgap','Lnbgap2','Size','Na'],['Roa'])
+
+
+# In[38]:
+
+
+Para=['Agap','Agap^2','Lnagap','Lnagap^2','Bgap','Bgap^2','Lnbgap','Lnbgap^2','Size','Na']
+Ni_no_square=['0.0413(0.001)','----','0.1544(0.000)','----','-0.0146(0.146)','----','-0.0469(0.288)','----','contr','contr']
+Ni_with_square=['0.1173(0.016)','-0.0094(0.104)','0.0309(0.0000)','0.0618(0.000)','0.0012(0.973)','-0.0014(0.634)','-0.0094(0.288)','-0.0187(0.288)','contr','contr']
+Roe_no_square=['0.0054(0.001)','----','0.02(0.000)','----','-0.0028(0.075)','----','-0.0078(0.176)','----','contr','contr']
+Roe_with_square=['0.0148(0.021)','-0.0012(0.127)','0.004(0.000)','0.008(0.000)','-2.005e-5(0.996)','-0.0002(0.591)','-0.0016(0.176)','-0.0031(0.176)','contr','contr']
+Roa_no_square=['0.001(0.001)','----','0.004(0.000)','----','-0.0004(0.114)','----','-0.0014(0.233)','----','contr','contr']
+Roa_with_square=['0.0033(0.010)','-0.0003(0.067)','0.0008(0.000)','0.0016(0.000)','-2.89e-5(0.975)','-3.412e-5(0.655)','-0.0003(0.223)','-0.0006(0.233)','contr','contr']
+
+
+# In[40]:
+
+
+summary_dict = {'Para':Para,'Ni_no_square':Ni_no_square,'Ni_with_square':Ni_with_square,'Roe_no_square':Roe_no_square,'Roe_with_square':Roe_with_square,'Roa_no_square':Roa_no_square,'Roa_with_square':Roa_with_square}
+summary = pd.DataFrame(summary_dict)
+summary
